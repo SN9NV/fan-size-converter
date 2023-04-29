@@ -1,5 +1,5 @@
 $fn=64;
-m=3;
+m=4;
 
 module peg(h,r) {
     hull() {
@@ -29,21 +29,23 @@ module fan_mount(size, height) {
             }
 }
 
-module nut_socket(inner_diameter, height) {
+module nut_socket(inner_diameter, height, hole=true) {
     r = inner_diameter/2;
     
-    difference() {
-        cylinder(r=r+1, h=height, $fn=6);
-        cylinder(r=r, h=height, $fn=6);
+    if (hole) {
+        difference() {
+            cylinder(r=r+0.5, h=height, $fn=6);
+            cylinder(r=r, h=height, $fn=6);
+        }
+    } else {
+        cylinder(r=r+0.5, h=height, $fn=6);
     }
 }
 
-module 40mm_fan() {
-    h = 1;
-
+module 40mm_fan(height) {
     difference() {
         union() {
-            fan_mount(40, h);
+            fan_mount(40, height);
             
             // Pegs
             translate([4,4,0])
@@ -58,73 +60,95 @@ module 40mm_fan() {
         
         // Center hole
         translate([20,20,0])
-            cylinder(h=h, d=38);
+            cylinder(h=height, d=38);
     }
 }
 
-module 50mm_fan() {
-    h = 1;
-    
+module nut_sockets(nut_diameter, height, hole=true) {
+    // Rotation of the nut socket
+    // Each edge: 360 / 6 = 60 degrees
+    // Quater turn: 60 / 4 = 15 degrees
+    rotation = 15; // degrees
+
+    translate([5,5,-3])
+        rotate(rotation)
+        nut_socket(nut_diameter, height, hole);
+    translate([50-5,5,-3])
+        rotate(rotation+30)
+        nut_socket(nut_diameter, height, hole);
+    translate([50-5,50-5,-3])
+        rotate(rotation)
+        nut_socket(nut_diameter, height, hole);
+    translate([5,50-5,-3])
+        rotate(rotation+30)
+        nut_socket(nut_diameter, height, hole);
+}
+
+module 50mm_fan(height) {
     union() {
         difference() {
-            fan_mount(50, h);
-            
+            fan_mount(50, height);
+
             // Screw Holes
             translate([5,5,0])
-                cylinder(h=h*2, d=4.3);
+                cylinder(h=height*2, d=4.3);
             translate([50-5,5,0])
-                cylinder(h=h*2, d=4.3);
+                cylinder(h=height*2, d=4.3);
             translate([50-5,50-5,0])
-                cylinder(h=h*2, d=4.3);
+                cylinder(h=height*2, d=4.3);
             translate([5,50-5,0])
-                cylinder(h=h*2, d=4.3);
+                cylinder(h=height*2, d=4.3);
 
             // Center hole
             translate([25,25,0])
-                cylinder(h=h, d=48);
+                cylinder(h=height, d=48);
         }
         
-        // Nut sockets
-        translate([5,5,-3])
-            rotate(8)
-            nut_socket(7, 3);
-        translate([50-5,5,-3])
-            rotate(38)
-            nut_socket(7, 3);
-        translate([50-5,50-5,-3])
-            rotate(8)
-            nut_socket(7, 3);
-        translate([5,50-5,-3])
-            rotate(38)
-            nut_socket(7, 3);
+//        nut_sockets(8.5, 3, true);
     }
 }
 
 module fan_converter() {
+    rotation = 0; // degrees
+    height = 6; // mm
+    bracket_thickness = 1; // mm
+
     difference() {
         union() {
-            translate([20,20,0])
-                rotate(22.5)
-                    translate([-20,-20,0])
-                        40mm_fan();
+            difference() {
+                union() {
+                    // 40mm bracket
+                    translate([20,20,0])
+                        rotate(rotation)
+                            translate([-20,-20,0])
+                                40mm_fan(bracket_thickness);
 
-            hull() {
-                translate([20,20,5])
-                    scale([1,1,0])
-                        cylinder(d=50, h=1);
-                translate([20,20,1])
-                    rotate(22.5)
-                        translate([-20,-20,0])
+                    // External tube
+                    hull() {
+                        translate([20,20,height])
                             scale([1,1,0])
-                                fan_mount(40, 1);
+                               cylinder(d=50, h=1);
+                        translate([20,20,bracket_thickness])
+                            rotate(rotation)
+                                translate([-20,-20,0])
+                                    scale([1,1,0])
+                                        fan_mount(40, 1);
+                    }
+                }
+                
+                // External tube nut socket cut-out
+                translate([-5,-5,0])
+                    nut_sockets(8, height*2, false);
             }
             
-            translate([-5,-5,5])
-                50mm_fan();
+            // 50mm bracket
+            translate([-5,-5,height])
+                50mm_fan(bracket_thickness);
         }
 
-        translate([20,20,1])
-            cylinder(h=4, d1=38, d2=48);
+        // Internal tube cut-out
+        translate([20,20,bracket_thickness])
+            cylinder(h=height-bracket_thickness, d1=38, d2=48);
     }
 }
 
